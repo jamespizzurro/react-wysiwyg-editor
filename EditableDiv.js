@@ -8,30 +8,58 @@ var ButtonGroup = ReactBootstrap.ButtonGroup;
 var DropdownButton = ReactBootstrap.DropdownButton;
 var MenuItem = ReactBootstrap.MenuItem;
 var Button = ReactBootstrap.Button;
-var OverlayTrigger = ReactBootstrap.OverlayTrigger;
+var ButtonInput = ReactBootstrap.ButtonInput;
+var Overlay = ReactBootstrap.Overlay;
 var Popover = ReactBootstrap.Popover;
+var Input = ReactBootstrap.Input;
 
 module.exports = React.createClass({
 	displayName: 'EditableDiv',
 
 	propTypes: {
 		content: React.PropTypes.string.isRequired,
-		onChange: React.PropTypes.func.isRequired
+		onChange: React.PropTypes.func.isRequired,
+		onImageUpload: React.PropTypes.func,
+		imageTooltipPlacement: React.PropTypes.string
+	},
+
+	getDefaultProps: function getDefaultProps() {
+		return {
+			imageTooltipPlacement: 'bottom'
+		};
 	},
 
 	getInitialState: function getInitialState() {
 		// this is anti-pattern but we treat this.props.content as initial content
 		return {
 			html: this.props.content,
-			paragraphStyle: 'none',
-			fontSizeStyle: 'none',
-			alignStyle: 'none'
+			showTooltip: false
 		};
 	},
 
-	emitChange: function emitChange() {
-		var editor = this.refs.editor.getDOMNode(),
-		    newHtml = editor.innerHTML;
+	componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
+		this.setState({
+			html: nextProps.content
+		});
+	},
+
+	shouldComponentUpdate: function shouldComponentUpdate(nextProps, nextState) {
+		return nextProps.content !== this.state.html || nextState.showTooltip !== this.state.showTooltip;
+	},
+
+	_toggleTooltip: function _toggleTooltip() {
+		this.setState({
+			showTooltip: !this.state.showTooltip
+		});
+	},
+
+	_execCommand: function _execCommand(command, arg) {
+		document.execCommand(command, false, arg);
+	},
+
+	_emitChange: function _emitChange() {
+		var editor = this.refs.editor.getDOMNode();
+		var newHtml = editor.innerHTML;
 
 		this.setState({ html: newHtml }, (function () {
 			this.props.onChange({
@@ -42,42 +70,44 @@ module.exports = React.createClass({
 		}).bind(this));
 	},
 
-	componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
-		this.setState({
-			html: nextProps.content
-		});
-	},
+	_onImageSubmit: function _onImageSubmit() {
+		var _this = this;
 
-	shouldComponentUpdate: function shouldComponentUpdate(nextProps) {
-		return nextProps.content !== this.state.html;
-	},
-
-	execCommand: function execCommand(command, arg) {
-		document.execCommand(command, false, arg);
-	},
-
-	_createLink: function _createLink() {
-		this.execCommand('createLink', this.refs.linkUrl.getDOMNode().value);
-	},
-
-	toggleDropdown: function toggleDropdown(dropdown) {
-		var dropdownObject = {};
-		dropdownObject[dropdown] = this.state[dropdown] === 'none' ? 'block' : 'none';
-		this.setState(dropdownObject);
+		var files = this.refs.imageInput.getInputDOMNode().files;
+		this.props.onImageUpload(files, (function (url) {
+			_this.refs.editor.getDOMNode().focus();
+			_this._execCommand('insertImage', url);
+		}).bind(this));
+		this._toggleTooltip();
 	},
 
 	render: function render() {
+		var _this2 = this;
+
 		// customize css rules here
-		var buttonSpacing = { marginRight: 2 },
-		    toolbarStyle = { marginBottom: 3 };
-		var createLinkForm = React.createElement(
-			'div',
-			null,
-			React.createElement('input', { type: 'text', ref: 'linkUrl', autofocus: true }),
+		var toolbarStyle = { marginBottom: 3 };
+		var imageUpload = this.props.onImageUpload === undefined ? null : React.createElement(
+			Overlay,
+			{
+				show: this.state.showTooltip,
+				onHide: function () {
+					return _this2.setState({ showTooltip: false });
+				},
+				placement: this.props.imageTooltipPlacement,
+				container: this,
+				rootClose: true,
+				target: function () {
+					return _this2.refs.imgUploadBtn.getDOMNode();
+				} },
 			React.createElement(
-				Button,
-				{ onClick: this._createLink },
-				'Done'
+				Popover,
+				{ id: 'popover', title: 'Image Upload' },
+				React.createElement(Input, { type: 'file',
+					ref: 'imageInput',
+					name: 'file',
+					label: 'Select an image to upload'
+				}),
+				React.createElement(ButtonInput, { type: 'submit', value: 'Submit', onClick: this._onImageSubmit })
 			)
 		);
 
@@ -95,63 +125,63 @@ module.exports = React.createClass({
 						{ title: React.createElement('i', { className: 'fa fa-paragraph' }), id: 'bg-nested-dropdown' },
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'formatBlock', 'P') },
+							{ onSelect: this._execCommand.bind(this, 'formatBlock', 'P') },
 							'Paragraph'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'formatBlock', 'BLOCKQUOTE') },
+							{ onSelect: this._execCommand.bind(this, 'formatBlock', 'BLOCKQUOTE') },
 							'Block Quote'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'formatBlock', 'H1') },
+							{ onSelect: this._execCommand.bind(this, 'formatBlock', 'H1') },
 							'Header 1'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'formatBlock', 'H2') },
+							{ onSelect: this._execCommand.bind(this, 'formatBlock', 'H2') },
 							'Header 2'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'formatBlock', 'H3') },
+							{ onSelect: this._execCommand.bind(this, 'formatBlock', 'H3') },
 							'Header 3'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'formatBlock', 'H4') },
+							{ onSelect: this._execCommand.bind(this, 'formatBlock', 'H4') },
 							'Header 4'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'formatBlock', 'H5') },
+							{ onSelect: this._execCommand.bind(this, 'formatBlock', 'H5') },
 							'Header 5'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'formatBlock', 'H6') },
+							{ onSelect: this._execCommand.bind(this, 'formatBlock', 'H6') },
 							'Header 6'
 						)
 					),
 					React.createElement(
 						Button,
-						{ onClick: this.execCommand.bind(this, 'bold') },
+						{ onClick: this._execCommand.bind(this, 'bold') },
 						React.createElement('i', { className: 'fa fa-bold' })
 					),
 					React.createElement(
 						Button,
-						{ onClick: this.execCommand.bind(this, 'italic') },
+						{ onClick: this._execCommand.bind(this, 'italic') },
 						React.createElement('i', { className: 'fa fa-italic' })
 					),
 					React.createElement(
 						Button,
-						{ onClick: this.execCommand.bind(this, 'underline') },
+						{ onClick: this._execCommand.bind(this, 'underline') },
 						React.createElement('i', { className: 'fa fa-underline' })
 					),
 					React.createElement(
 						Button,
-						{ onClick: this.execCommand.bind(this, 'strikeThrough') },
+						{ onClick: this._execCommand.bind(this, 'strikeThrough') },
 						React.createElement('i', { className: 'fa fa-strikethrough' })
 					),
 					React.createElement(
@@ -159,48 +189,48 @@ module.exports = React.createClass({
 						{ title: React.createElement('i', { className: 'fa fa-text-height' }), id: 'bg-nested-dropdown' },
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'fontSize', 1) },
+							{ onSelect: this._execCommand.bind(this, 'fontSize', 1) },
 							'1'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'fontSize', 2) },
+							{ onSelect: this._execCommand.bind(this, 'fontSize', 2) },
 							'2'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'fontSize', 3) },
+							{ onSelect: this._execCommand.bind(this, 'fontSize', 3) },
 							'3'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'fontSize', 4) },
+							{ onSelect: this._execCommand.bind(this, 'fontSize', 4) },
 							'4'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'fontSize', 5) },
+							{ onSelect: this._execCommand.bind(this, 'fontSize', 5) },
 							'5'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'fontSize', 6) },
+							{ onSelect: this._execCommand.bind(this, 'fontSize', 6) },
 							'6'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'fontSize', 7) },
+							{ onSelect: this._execCommand.bind(this, 'fontSize', 7) },
 							'7'
 						)
 					),
 					React.createElement(
 						Button,
-						{ onClick: this.execCommand.bind(this, 'insertOrderedList') },
+						{ onClick: this._execCommand.bind(this, 'insertOrderedList') },
 						React.createElement('i', { className: 'fa fa-list-ol' })
 					),
 					React.createElement(
 						Button,
-						{ onClick: this.execCommand.bind(this, 'insertUnorderedList') },
+						{ onClick: this._execCommand.bind(this, 'insertUnorderedList') },
 						React.createElement('i', { className: 'fa fa-list-ul' })
 					),
 					React.createElement(
@@ -208,30 +238,36 @@ module.exports = React.createClass({
 						{ title: React.createElement('i', { className: 'fa fa-align-left' }), id: 'bg-nested-dropdown' },
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'justifyLeft') },
+							{ onSelect: this._execCommand.bind(this, 'justifyLeft') },
 							'Align Left'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'justifyRight') },
+							{ onSelect: this._execCommand.bind(this, 'justifyRight') },
 							'Align Right'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'justifyCenter') },
+							{ onSelect: this._execCommand.bind(this, 'justifyCenter') },
 							'Align Center'
 						),
 						React.createElement(
 							MenuItem,
-							{ onSelect: this.execCommand.bind(this, 'justifyFull') },
+							{ onSelect: this._execCommand.bind(this, 'justifyFull') },
 							'Align Justify'
 						)
 					),
 					React.createElement(
 						Button,
-						{ onClick: this.execCommand.bind(this, 'removeFormat') },
+						{ onClick: this._execCommand.bind(this, 'removeFormat') },
 						React.createElement('i', { className: 'fa fa-eraser' })
-					)
+					),
+					React.createElement(
+						Button,
+						{ ref: 'imgUploadBtn', id: 'imgUploadBtn', onClick: this._toggleTooltip },
+						React.createElement('i', { className: 'fa fa-picture-o' })
+					),
+					imageUpload
 				)
 			),
 			React.createElement('div', _extends({
@@ -240,7 +276,13 @@ module.exports = React.createClass({
 			}, this.props, {
 				contentEditable: 'true',
 				dangerouslySetInnerHTML: { __html: this.state.html },
-				onInput: this.emitChange }))
+				onBlur: function (e) {
+					if (e.relatedTarget.id === 'imgUploadBtn') {
+						e.preventDefault();
+						_this2.refs.editor.getDOMNode().focus();
+					}
+				},
+				onInput: this._emitChange }))
 		);
 	}
 });

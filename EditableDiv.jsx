@@ -5,21 +5,32 @@ var ButtonGroup = ReactBootstrap.ButtonGroup;
 var DropdownButton = ReactBootstrap.DropdownButton;
 var MenuItem = ReactBootstrap.MenuItem;
 var Button = ReactBootstrap.Button;
-var OverlayTrigger = ReactBootstrap.OverlayTrigger;
+var ButtonInput = ReactBootstrap.ButtonInput;
+var Overlay = ReactBootstrap.Overlay;
 var Popover = ReactBootstrap.Popover;
+var Input = ReactBootstrap.Input;
 
 module.exports = React.createClass({
 	displayName: 'EditableDiv',
 
 	propTypes: {
 		content: React.PropTypes.string.isRequired,
-		onChange: React.PropTypes.func.isRequired
+		onChange: React.PropTypes.func.isRequired,
+		onImageUpload: React.PropTypes.func,
+		imageTooltipPlacement: React.PropTypes.string
+	},
+
+	getDefaultProps: function() {
+		return {
+			imageTooltipPlacement: 'bottom'
+		};
 	},
 
 	getInitialState: function() {
 		// this is anti-pattern but we treat this.props.content as initial content
 		return {
-			html: this.props.content
+			html: this.props.content,
+			showTooltip: false
 		};
 	},
 
@@ -29,8 +40,14 @@ module.exports = React.createClass({
 		});
 	},
 
-	shouldComponentUpdate: function(nextProps) {
-		return nextProps.content !== this.state.html;
+	shouldComponentUpdate: function(nextProps, nextState) {
+		return nextProps.content !== this.state.html || nextState.showTooltip !== this.state.showTooltip;
+	},
+
+	_toggleTooltip: function() {
+		this.setState({
+			showTooltip: !this.state.showTooltip
+		});
 	},
 
 	_execCommand: function(command, arg) {
@@ -50,9 +67,36 @@ module.exports = React.createClass({
 		}.bind(this));
 	},
 
+	_onImageSubmit: function() {
+		var files = this.refs.imageInput.getInputDOMNode().files;
+		this.props.onImageUpload(files, (url) => {
+			this.refs.editor.getDOMNode().focus();
+			this._execCommand('insertImage', url);
+		}.bind(this));
+		this._toggleTooltip();
+	},
+
 	render: function() {
 		// customize css rules here
 		var toolbarStyle = {marginBottom: 3};
+		var imageUpload = this.props.onImageUpload === undefined ? null : (
+			<Overlay
+				show={this.state.showTooltip}
+				onHide={() => this.setState({ showTooltip: false })}
+				placement={this.props.imageTooltipPlacement}
+				container={this}
+				rootClose={true}
+				target={() => this.refs.imgUploadBtn.getDOMNode()} >
+				<Popover id="popover" title="Image Upload" >
+					<Input type="file"
+						ref="imageInput"
+						name="file"
+						label="Select an image to upload"
+					/>
+					<ButtonInput type="submit" value="Submit" onClick={this._onImageSubmit}/>
+				</Popover>
+			</Overlay>
+		);
 
 		return (
 			<div>
@@ -90,10 +134,10 @@ module.exports = React.createClass({
 							<MenuItem onSelect={this._execCommand.bind(this, 'fontSize', 7)}>7</MenuItem>
 						</DropdownButton>
 						<Button onClick={this._execCommand.bind(this, 'insertOrderedList')}>
-							<i className="fa fa-list-ol"></i>	
+							<i className="fa fa-list-ol"></i>
 						</Button>
 						<Button onClick={this._execCommand.bind(this, 'insertUnorderedList')}>
-							<i className="fa fa-list-ul"></i>	
+							<i className="fa fa-list-ul"></i>
 						</Button>
 						<DropdownButton title={<i className="fa fa-align-left"></i>} id="bg-nested-dropdown">
 							<MenuItem onSelect={this._execCommand.bind(this, 'justifyLeft')}>Align Left</MenuItem>
@@ -104,14 +148,24 @@ module.exports = React.createClass({
 						<Button onClick={this._execCommand.bind(this, 'removeFormat')}>
 							<i className="fa fa-eraser"></i>
 						</Button>
+						<Button ref="imgUploadBtn" id="imgUploadBtn" onClick={this._toggleTooltip}>
+							<i className="fa fa-picture-o"></i>
+						</Button>
+						{imageUpload}
 					</ButtonGroup>
 				</div>
 				<div
 					ref="editor"
 					className="form-control"
-					{...this.props} 
+					{...this.props}
 					contentEditable="true"
 					dangerouslySetInnerHTML={{__html: this.state.html}}
+					onBlur={(e) => {
+						if (e.relatedTarget.id === 'imgUploadBtn') {
+							e.preventDefault();
+							this.refs.editor.getDOMNode().focus();
+						}
+					}}
 					onInput={this._emitChange}/>
 			</div>
 		);
