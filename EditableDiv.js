@@ -2,6 +2,7 @@
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
+var $ = require('npm-zepto');
 var React = require('react');
 var ReactBootstrap = require('react-bootstrap');
 var ButtonGroup = ReactBootstrap.ButtonGroup;
@@ -25,7 +26,7 @@ module.exports = React.createClass({
 
 	getDefaultProps: function getDefaultProps() {
 		return {
-			imageTooltipPlacement: 'bottom'
+			imageTooltipPlacement: 'auto'
 		};
 	},
 
@@ -86,6 +87,13 @@ module.exports = React.createClass({
 
 		// customize css rules here
 		var toolbarStyle = { marginBottom: 3 };
+		var tooltipPlacement = this.props.imageTooltipPlacement;
+		if (tooltipPlacement === 'auto') {
+			var imgBtn = $('#imgUploadBtn');
+			if (imgBtn.length) {
+				tooltipPlacement = imgBtn.offset().left < 350 ? 'right' : 'left';
+			}
+		}
 		var imageUpload = this.props.onImageUpload === undefined ? null : React.createElement(
 			Overlay,
 			{
@@ -93,7 +101,7 @@ module.exports = React.createClass({
 				onHide: function () {
 					return _this2.setState({ showTooltip: false });
 				},
-				placement: this.props.imageTooltipPlacement,
+				placement: tooltipPlacement,
 				container: this,
 				rootClose: true,
 				target: function () {

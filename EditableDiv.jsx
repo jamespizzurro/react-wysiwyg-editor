@@ -1,4 +1,5 @@
 'use strict';
+var $ = require('npm-zepto');
 var React = require('react');
 var ReactBootstrap = require('react-bootstrap');
 var ButtonGroup = ReactBootstrap.ButtonGroup;
@@ -22,7 +23,7 @@ module.exports = React.createClass({
 
 	getDefaultProps: function() {
 		return {
-			imageTooltipPlacement: 'bottom'
+			imageTooltipPlacement: 'auto'
 		};
 	},
 
@@ -79,11 +80,18 @@ module.exports = React.createClass({
 	render: function() {
 		// customize css rules here
 		var toolbarStyle = {marginBottom: 3};
+		var tooltipPlacement = this.props.imageTooltipPlacement;
+		if (tooltipPlacement === 'auto') {
+			var imgBtn = $('#imgUploadBtn');
+			if (imgBtn.length) {
+				tooltipPlacement = imgBtn.offset().left < 350 ? 'right' : 'left';
+			}
+		}
 		var imageUpload = this.props.onImageUpload === undefined ? null : (
 			<Overlay
 				show={this.state.showTooltip}
 				onHide={() => this.setState({ showTooltip: false })}
-				placement={this.props.imageTooltipPlacement}
+				placement={tooltipPlacement}
 				container={this}
 				rootClose={true}
 				target={() => this.refs.imgUploadBtn.getDOMNode()} >
