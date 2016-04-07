@@ -18,12 +18,13 @@ module.exports = React.createClass({
 		content: React.PropTypes.string.isRequired,
 		onChange: React.PropTypes.func.isRequired,
 		onImageUpload: React.PropTypes.func,
-		imageTooltipPlacement: React.PropTypes.string
+		onVideoUpload: React.PropTypes.func,
+		tooltipPlacement: React.PropTypes.string
 	},
 
 	getDefaultProps: function() {
 		return {
-			imageTooltipPlacement: 'auto'
+			tooltipPlacement: 'auto'
 		};
 	},
 
@@ -31,7 +32,8 @@ module.exports = React.createClass({
 		// this is anti-pattern but we treat this.props.content as initial content
 		return {
 			html: this.props.content,
-			showTooltip: false
+			showImageTooltip: false,
+			showVideoTooltip: false
 		};
 	},
 
@@ -42,12 +44,19 @@ module.exports = React.createClass({
 	},
 
 	shouldComponentUpdate: function(nextProps, nextState) {
-		return nextProps.content !== this.state.html || nextState.showTooltip !== this.state.showTooltip;
+		return nextProps.content !== this.state.html || nextState.showImageTooltip !== this.state.showImageTooltip ||
+			nextState.showVideoTooltip !== this.state.showVideoTooltip;
 	},
 
-	_toggleTooltip: function() {
+	_toggleImageTooltip: function() {
 		this.setState({
-			showTooltip: !this.state.showTooltip
+			showImageTooltip: !this.state.showImageTooltip
+		});
+	},
+
+	_toggleVideoTooltip: function() {
+		this.setState({
+			showVideoTooltip: !this.state.showVideoTooltip
 		});
 	},
 
@@ -73,25 +82,41 @@ module.exports = React.createClass({
 		this.props.onImageUpload(files, (url) => {
 			this.refs.editor.getDOMNode().focus();
 			this._execCommand('insertImage', url);
-		}.bind(this));
-		this._toggleTooltip();
+		});
+		this._toggleImageTooltip();
+	},
+
+	_onVideoSubmit: function() {
+		var files = this.refs.videoInput.getInputDOMNode().files;
+		this.props.onVideoUpload(files, (url) => {
+			this.refs.editor.getDOMNode().focus();
+			this._execCommand('insertHTML', `<figure><video controls width="400" src="${url}">Your browser does not support HTML5 video.</video></figure>`);
+		});
+		this._toggleVideoTooltip();
 	},
 
 	render: function() {
 		// customize css rules here
 		var toolbarStyle = {marginBottom: 3};
-		var tooltipPlacement = this.props.imageTooltipPlacement;
-		if (tooltipPlacement === 'auto') {
+		var imgTooltipPlacement = this.props.tooltipPlacement;
+		var videoTooltipPlacement = this.props.tooltipPlacement;
+		if (imgTooltipPlacement === 'auto') {
 			var imgBtn = $('#imgUploadBtn');
 			if (imgBtn.length) {
-				tooltipPlacement = imgBtn.offset().left < 350 ? 'right' : 'left';
+				imgTooltipPlacement = imgBtn.offset().left < 350 ? 'right' : 'left';
+			}
+		}
+		if (videoTooltipPlacement === 'auto') {
+			var videoUploadBtn = $('#videoUploadBtn');
+			if (videoUploadBtn.length) {
+				videoTooltipPlacement = videoUploadBtn.offset().left < 350 ? 'right' : 'left';
 			}
 		}
 		var imageUpload = this.props.onImageUpload === undefined ? null : (
 			<Overlay
-				show={this.state.showTooltip}
-				onHide={() => this.setState({ showTooltip: false })}
-				placement={tooltipPlacement}
+				show={this.state.showImageTooltip}
+				onHide={() => this.setState({ showImageTooltip: false })}
+				placement={imgTooltipPlacement}
 				container={this}
 				rootClose={true}
 				target={() => this.refs.imgUploadBtn.getDOMNode()} >
@@ -105,7 +130,24 @@ module.exports = React.createClass({
 				</Popover>
 			</Overlay>
 		);
-
+		var videoUpload = this.props.onVideoUpload === undefined ? null : (
+			<Overlay
+				show={this.state.showVideoTooltip}
+				onHide={() => this.setState({ showVideoTooltip: false })}
+				placement={videoTooltipPlacement}
+				container={this}
+				rootClose={true}
+				target={() => this.refs.videoUploadBtn.getDOMNode()} >
+				<Popover id="popover" title="Video Upload" >
+					<Input type="file"
+						ref="videoInput"
+						name="file"
+						label="Select a video to upload"
+					/>
+					<ButtonInput type="submit" value="Submit" onClick={this._onVideoSubmit}/>
+				</Popover>
+			</Overlay>
+		);
 		return (
 			<div>
 				<div style={toolbarStyle}>
@@ -156,10 +198,14 @@ module.exports = React.createClass({
 						<Button onClick={this._execCommand.bind(this, 'removeFormat')}>
 							<i className="fa fa-eraser"></i>
 						</Button>
-						<Button ref="imgUploadBtn" id="imgUploadBtn" onClick={this._toggleTooltip}>
+						<Button ref="imgUploadBtn" id="imgUploadBtn" onClick={this._toggleImageTooltip}>
 							<i className="fa fa-picture-o"></i>
 						</Button>
 						{imageUpload}
+						<Button ref="videoUploadBtn" id="videoUploadBtn" onClick={this._toggleVideoTooltip}>
+							<i className="fa fa-file-video-o"></i>
+						</Button>
+						{videoUpload}
 					</ButtonGroup>
 				</div>
 				<div
@@ -169,7 +215,7 @@ module.exports = React.createClass({
 					contentEditable="true"
 					dangerouslySetInnerHTML={{__html: this.state.html}}
 					onBlur={(e) => {
-						if (e.relatedTarget.id === 'imgUploadBtn') {
+						if (e.relatedTarget.id === 'imgUploadBtn' || e.relatedTarget.id === 'videoUploadBtn') {
 							e.preventDefault();
 							this.refs.editor.getDOMNode().focus();
 						}

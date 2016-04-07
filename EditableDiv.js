@@ -21,12 +21,13 @@ module.exports = React.createClass({
 		content: React.PropTypes.string.isRequired,
 		onChange: React.PropTypes.func.isRequired,
 		onImageUpload: React.PropTypes.func,
-		imageTooltipPlacement: React.PropTypes.string
+		onVideoUpload: React.PropTypes.func,
+		tooltipPlacement: React.PropTypes.string
 	},
 
 	getDefaultProps: function getDefaultProps() {
 		return {
-			imageTooltipPlacement: 'auto'
+			tooltipPlacement: 'auto'
 		};
 	},
 
@@ -34,7 +35,8 @@ module.exports = React.createClass({
 		// this is anti-pattern but we treat this.props.content as initial content
 		return {
 			html: this.props.content,
-			showTooltip: false
+			showImageTooltip: false,
+			showVideoTooltip: false
 		};
 	},
 
@@ -45,12 +47,18 @@ module.exports = React.createClass({
 	},
 
 	shouldComponentUpdate: function shouldComponentUpdate(nextProps, nextState) {
-		return nextProps.content !== this.state.html || nextState.showTooltip !== this.state.showTooltip;
+		return nextProps.content !== this.state.html || nextState.showImageTooltip !== this.state.showImageTooltip || nextState.showVideoTooltip !== this.state.showVideoTooltip;
 	},
 
-	_toggleTooltip: function _toggleTooltip() {
+	_toggleImageTooltip: function _toggleImageTooltip() {
 		this.setState({
-			showTooltip: !this.state.showTooltip
+			showImageTooltip: !this.state.showImageTooltip
+		});
+	},
+
+	_toggleVideoTooltip: function _toggleVideoTooltip() {
+		this.setState({
+			showVideoTooltip: !this.state.showVideoTooltip
 		});
 	},
 
@@ -75,37 +83,55 @@ module.exports = React.createClass({
 		var _this = this;
 
 		var files = this.refs.imageInput.getInputDOMNode().files;
-		this.props.onImageUpload(files, (function (url) {
+		this.props.onImageUpload(files, function (url) {
 			_this.refs.editor.getDOMNode().focus();
 			_this._execCommand('insertImage', url);
-		}).bind(this));
-		this._toggleTooltip();
+		});
+		this._toggleImageTooltip();
+	},
+
+	_onVideoSubmit: function _onVideoSubmit() {
+		var _this2 = this;
+
+		var files = this.refs.videoInput.getInputDOMNode().files;
+		this.props.onVideoUpload(files, function (url) {
+			_this2.refs.editor.getDOMNode().focus();
+			_this2._execCommand('insertHTML', '<figure><video controls width="400" src="' + url + '">Your browser does not support HTML5 video.</video></figure>');
+		});
+		this._toggleVideoTooltip();
 	},
 
 	render: function render() {
-		var _this2 = this;
+		var _this3 = this;
 
 		// customize css rules here
 		var toolbarStyle = { marginBottom: 3 };
-		var tooltipPlacement = this.props.imageTooltipPlacement;
-		if (tooltipPlacement === 'auto') {
+		var imgTooltipPlacement = this.props.tooltipPlacement;
+		var videoTooltipPlacement = this.props.tooltipPlacement;
+		if (imgTooltipPlacement === 'auto') {
 			var imgBtn = $('#imgUploadBtn');
 			if (imgBtn.length) {
-				tooltipPlacement = imgBtn.offset().left < 350 ? 'right' : 'left';
+				imgTooltipPlacement = imgBtn.offset().left < 350 ? 'right' : 'left';
+			}
+		}
+		if (videoTooltipPlacement === 'auto') {
+			var videoUploadBtn = $('#videoUploadBtn');
+			if (videoUploadBtn.length) {
+				videoTooltipPlacement = videoUploadBtn.offset().left < 350 ? 'right' : 'left';
 			}
 		}
 		var imageUpload = this.props.onImageUpload === undefined ? null : React.createElement(
 			Overlay,
 			{
-				show: this.state.showTooltip,
+				show: this.state.showImageTooltip,
 				onHide: function () {
-					return _this2.setState({ showTooltip: false });
+					return _this3.setState({ showImageTooltip: false });
 				},
-				placement: tooltipPlacement,
+				placement: imgTooltipPlacement,
 				container: this,
 				rootClose: true,
 				target: function () {
-					return _this2.refs.imgUploadBtn.getDOMNode();
+					return _this3.refs.imgUploadBtn.getDOMNode();
 				} },
 			React.createElement(
 				Popover,
@@ -118,7 +144,30 @@ module.exports = React.createClass({
 				React.createElement(ButtonInput, { type: 'submit', value: 'Submit', onClick: this._onImageSubmit })
 			)
 		);
-
+		var videoUpload = this.props.onVideoUpload === undefined ? null : React.createElement(
+			Overlay,
+			{
+				show: this.state.showVideoTooltip,
+				onHide: function () {
+					return _this3.setState({ showVideoTooltip: false });
+				},
+				placement: videoTooltipPlacement,
+				container: this,
+				rootClose: true,
+				target: function () {
+					return _this3.refs.videoUploadBtn.getDOMNode();
+				} },
+			React.createElement(
+				Popover,
+				{ id: 'popover', title: 'Video Upload' },
+				React.createElement(Input, { type: 'file',
+					ref: 'videoInput',
+					name: 'file',
+					label: 'Select a video to upload'
+				}),
+				React.createElement(ButtonInput, { type: 'submit', value: 'Submit', onClick: this._onVideoSubmit })
+			)
+		);
 		return React.createElement(
 			'div',
 			null,
@@ -272,10 +321,16 @@ module.exports = React.createClass({
 					),
 					React.createElement(
 						Button,
-						{ ref: 'imgUploadBtn', id: 'imgUploadBtn', onClick: this._toggleTooltip },
+						{ ref: 'imgUploadBtn', id: 'imgUploadBtn', onClick: this._toggleImageTooltip },
 						React.createElement('i', { className: 'fa fa-picture-o' })
 					),
-					imageUpload
+					imageUpload,
+					React.createElement(
+						Button,
+						{ ref: 'videoUploadBtn', id: 'videoUploadBtn', onClick: this._toggleVideoTooltip },
+						React.createElement('i', { className: 'fa fa-file-video-o' })
+					),
+					videoUpload
 				)
 			),
 			React.createElement('div', _extends({
@@ -285,9 +340,9 @@ module.exports = React.createClass({
 				contentEditable: 'true',
 				dangerouslySetInnerHTML: { __html: this.state.html },
 				onBlur: function (e) {
-					if (e.relatedTarget.id === 'imgUploadBtn') {
+					if (e.relatedTarget.id === 'imgUploadBtn' || e.relatedTarget.id === 'videoUploadBtn') {
 						e.preventDefault();
-						_this2.refs.editor.getDOMNode().focus();
+						_this3.refs.editor.getDOMNode().focus();
 					}
 				},
 				onInput: this._emitChange }))
