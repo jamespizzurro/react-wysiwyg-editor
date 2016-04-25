@@ -206,6 +206,9 @@ module.exports = React.createClass({
 							<i className="fa fa-file-video-o"></i>
 						</Button>
 						{videoUpload}
+						<Button onClick={this._execCommand.bind(this, 'createLink')}>
+							<i className="fa fa-link"></i>
+						</Button>
 					</ButtonGroup>
 				</div>
 				<div

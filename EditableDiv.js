@@ -330,7 +330,12 @@ module.exports = React.createClass({
 						{ ref: 'videoUploadBtn', id: 'videoUploadBtn', onClick: this._toggleVideoTooltip },
 						React.createElement('i', { className: 'fa fa-file-video-o' })
 					),
-					videoUpload
+					videoUpload,
+					React.createElement(
+						Button,
+						{ onClick: this._execCommand.bind(this, 'createLink') },
+						React.createElement('i', { className: 'fa fa-link' })
+					)
 				)
 			),
 			React.createElement('div', _extends({
