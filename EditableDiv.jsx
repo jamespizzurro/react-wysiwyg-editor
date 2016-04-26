@@ -33,7 +33,9 @@ module.exports = React.createClass({
 		return {
 			html: this.props.content,
 			showImageTooltip: false,
-			showVideoTooltip: false
+			showVideoTooltip: false,
+			showLinkTooltip: false,
+			textSelection: null
 		};
 	},
 
@@ -45,7 +47,7 @@ module.exports = React.createClass({
 
 	shouldComponentUpdate: function(nextProps, nextState) {
 		return nextProps.content !== this.state.html || nextState.showImageTooltip !== this.state.showImageTooltip ||
-			nextState.showVideoTooltip !== this.state.showVideoTooltip;
+			nextState.showVideoTooltip !== this.state.showVideoTooltip || nextState.showLinkTooltip !== this.state.showLinkTooltip;
 	},
 
 	_toggleImageTooltip: function() {
@@ -57,6 +59,13 @@ module.exports = React.createClass({
 	_toggleVideoTooltip: function() {
 		this.setState({
 			showVideoTooltip: !this.state.showVideoTooltip
+		});
+	},
+
+	_toggleLinkTooltip: function() {
+		this.setState({
+			showLinkTooltip: !this.state.showLinkTooltip,
+			textSelection: this._saveSelection()
 		});
 	},
 
@@ -95,11 +104,47 @@ module.exports = React.createClass({
 		this._toggleVideoTooltip();
 	},
 
+	// source: http://stackoverflow.com/a/5614571
+	_saveSelection: function() {
+		if (window.getSelection) {
+			if (window.getSelection().getRangeAt && window.getSelection().rangeCount) {
+				var ranges = [];
+				for (var i = 0, len = window.getSelection().rangeCount; i < len; ++i) {
+					ranges.push(window.getSelection().getRangeAt(i));
+				}
+				return ranges;
+			}
+		} else if (document.selection && document.selection.createRange) {
+			return document.selection.createRange();
+		}
+		return null;
+	},
+	_restoreSelection: function(savedSel) {
+		if (savedSel) {
+			if (window.getSelection) {
+				window.getSelection().removeAllRanges();
+				for (var i = 0, len = savedSel.length; i < len; ++i) {
+					window.getSelection().addRange(savedSel[i]);
+				}
+			} else if (document.selection && savedSel.select) {
+				savedSel.select();
+			}
+		}
+	},
+
+	_onLinkSubmit: function() {
+		this.refs.editor.getDOMNode().focus();
+		this._restoreSelection(this.state.textSelection);
+		this._execCommand('createLink', this.refs.linkInput.getInputDOMNode().value);
+		this._toggleLinkTooltip();
+	},
+
 	render: function() {
 		// customize css rules here
 		var toolbarStyle = {marginBottom: 3};
 		var imgTooltipPlacement = this.props.tooltipPlacement;
 		var videoTooltipPlacement = this.props.tooltipPlacement;
+		var linkTooltipPlacement = this.props.tooltipPlacement;
 		if (imgTooltipPlacement === 'auto') {
 			var imgBtn = $('#imgUploadBtn');
 			if (imgBtn.length) {
@@ -110,6 +155,12 @@ module.exports = React.createClass({
 			var videoUploadBtn = $('#videoUploadBtn');
 			if (videoUploadBtn.length) {
 				videoTooltipPlacement = videoUploadBtn.offset().left < 350 ? 'right' : 'left';
+			}
+		}
+		if (linkTooltipPlacement === 'auto') {
+			var linkCreateBtn = $('#linkCreateBtn');
+			if (linkCreateBtn.length) {
+				linkTooltipPlacement = linkCreateBtn.offset().left < 350 ? 'right' : 'left';
 			}
 		}
 		var imageUpload = this.props.onImageUpload === undefined ? null : (
@@ -145,6 +196,24 @@ module.exports = React.createClass({
 						label="Select a video to upload"
 					/>
 					<ButtonInput type="submit" value="Submit" onClick={this._onVideoSubmit}/>
+				</Popover>
+			</Overlay>
+		);
+		var linkCreate = (
+			<Overlay
+				show={this.state.showLinkTooltip}
+				onHide={() => this.setState({ showLinkTooltip: false })}
+				placement={linkTooltipPlacement}
+				container={this}
+				rootClose={true}
+				target={() => this.refs.linkCreateBtn.getDOMNode()} >
+				<Popover id="popover" title="Create Link">
+					<Input type="text"
+					       ref="linkInput"
+					       name="url"
+					       label="Link URL"
+						/>
+					<ButtonInput type="submit" value="Submit" onClick={this._onLinkSubmit}/>
 				</Popover>
 			</Overlay>
 		);
@@ -206,9 +275,10 @@ module.exports = React.createClass({
 							<i className="fa fa-file-video-o"></i>
 						</Button>
 						{videoUpload}
-						<Button onClick={this._execCommand.bind(this, 'createLink')}>
+						<Button ref="linkCreateBtn" id="linkCreateBtn" onClick={this._toggleLinkTooltip}>
 							<i className="fa fa-link"></i>
 						</Button>
+						{linkCreate}
 					</ButtonGroup>
 				</div>
 				<div
@@ -218,7 +288,7 @@ module.exports = React.createClass({
 					contentEditable="true"
 					dangerouslySetInnerHTML={{__html: this.state.html}}
 					onBlur={(e) => {
-						if (e.relatedTarget.id === 'imgUploadBtn' || e.relatedTarget.id === 'videoUploadBtn') {
+						if (e.relatedTarget.id === 'imgUploadBtn' || e.relatedTarget.id === 'videoUploadBtn' || e.relatedTarget.id === 'linkCreateBtn') {
 							e.preventDefault();
 							this.refs.editor.getDOMNode().focus();
 						}

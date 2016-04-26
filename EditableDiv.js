@@ -36,7 +36,9 @@ module.exports = React.createClass({
 		return {
 			html: this.props.content,
 			showImageTooltip: false,
-			showVideoTooltip: false
+			showVideoTooltip: false,
+			showLinkTooltip: false,
+			textSelection: null
 		};
 	},
 
@@ -47,7 +49,7 @@ module.exports = React.createClass({
 	},
 
 	shouldComponentUpdate: function shouldComponentUpdate(nextProps, nextState) {
-		return nextProps.content !== this.state.html || nextState.showImageTooltip !== this.state.showImageTooltip || nextState.showVideoTooltip !== this.state.showVideoTooltip;
+		return nextProps.content !== this.state.html || nextState.showImageTooltip !== this.state.showImageTooltip || nextState.showVideoTooltip !== this.state.showVideoTooltip || nextState.showLinkTooltip !== this.state.showLinkTooltip;
 	},
 
 	_toggleImageTooltip: function _toggleImageTooltip() {
@@ -62,6 +64,13 @@ module.exports = React.createClass({
 		});
 	},
 
+	_toggleLinkTooltip: function _toggleLinkTooltip() {
+		this.setState({
+			showLinkTooltip: !this.state.showLinkTooltip,
+			textSelection: this._saveSelection()
+		});
+	},
+
 	_execCommand: function _execCommand(command, arg) {
 		document.execCommand(command, false, arg);
 	},
@@ -70,13 +79,13 @@ module.exports = React.createClass({
 		var editor = this.refs.editor.getDOMNode();
 		var newHtml = editor.innerHTML;
 
-		this.setState({ html: newHtml }, (function () {
+		this.setState({ html: newHtml }, function () {
 			this.props.onChange({
 				target: {
 					value: newHtml
 				}
 			});
-		}).bind(this));
+		}.bind(this));
 	},
 
 	_onImageSubmit: function _onImageSubmit() {
@@ -101,6 +110,41 @@ module.exports = React.createClass({
 		this._toggleVideoTooltip();
 	},
 
+	// source: http://stackoverflow.com/a/5614571
+	_saveSelection: function _saveSelection() {
+		if (window.getSelection) {
+			if (window.getSelection().getRangeAt && window.getSelection().rangeCount) {
+				var ranges = [];
+				for (var i = 0, len = window.getSelection().rangeCount; i < len; ++i) {
+					ranges.push(window.getSelection().getRangeAt(i));
+				}
+				return ranges;
+			}
+		} else if (document.selection && document.selection.createRange) {
+			return document.selection.createRange();
+		}
+		return null;
+	},
+	_restoreSelection: function _restoreSelection(savedSel) {
+		if (savedSel) {
+			if (window.getSelection) {
+				window.getSelection().removeAllRanges();
+				for (var i = 0, len = savedSel.length; i < len; ++i) {
+					window.getSelection().addRange(savedSel[i]);
+				}
+			} else if (document.selection && savedSel.select) {
+				savedSel.select();
+			}
+		}
+	},
+
+	_onLinkSubmit: function _onLinkSubmit() {
+		this.refs.editor.getDOMNode().focus();
+		this._restoreSelection(this.state.textSelection);
+		this._execCommand('createLink', this.refs.linkInput.getInputDOMNode().value);
+		this._toggleLinkTooltip();
+	},
+
 	render: function render() {
 		var _this3 = this;
 
@@ -108,6 +152,7 @@ module.exports = React.createClass({
 		var toolbarStyle = { marginBottom: 3 };
 		var imgTooltipPlacement = this.props.tooltipPlacement;
 		var videoTooltipPlacement = this.props.tooltipPlacement;
+		var linkTooltipPlacement = this.props.tooltipPlacement;
 		if (imgTooltipPlacement === 'auto') {
 			var imgBtn = $('#imgUploadBtn');
 			if (imgBtn.length) {
@@ -120,17 +165,23 @@ module.exports = React.createClass({
 				videoTooltipPlacement = videoUploadBtn.offset().left < 350 ? 'right' : 'left';
 			}
 		}
+		if (linkTooltipPlacement === 'auto') {
+			var linkCreateBtn = $('#linkCreateBtn');
+			if (linkCreateBtn.length) {
+				linkTooltipPlacement = linkCreateBtn.offset().left < 350 ? 'right' : 'left';
+			}
+		}
 		var imageUpload = this.props.onImageUpload === undefined ? null : React.createElement(
 			Overlay,
 			{
 				show: this.state.showImageTooltip,
-				onHide: function () {
+				onHide: function onHide() {
 					return _this3.setState({ showImageTooltip: false });
 				},
 				placement: imgTooltipPlacement,
 				container: this,
 				rootClose: true,
-				target: function () {
+				target: function target() {
 					return _this3.refs.imgUploadBtn.getDOMNode();
 				} },
 			React.createElement(
@@ -148,13 +199,13 @@ module.exports = React.createClass({
 			Overlay,
 			{
 				show: this.state.showVideoTooltip,
-				onHide: function () {
+				onHide: function onHide() {
 					return _this3.setState({ showVideoTooltip: false });
 				},
 				placement: videoTooltipPlacement,
 				container: this,
 				rootClose: true,
-				target: function () {
+				target: function target() {
 					return _this3.refs.videoUploadBtn.getDOMNode();
 				} },
 			React.createElement(
@@ -166,6 +217,30 @@ module.exports = React.createClass({
 					label: 'Select a video to upload'
 				}),
 				React.createElement(ButtonInput, { type: 'submit', value: 'Submit', onClick: this._onVideoSubmit })
+			)
+		);
+		var linkCreate = React.createElement(
+			Overlay,
+			{
+				show: this.state.showLinkTooltip,
+				onHide: function onHide() {
+					return _this3.setState({ showLinkTooltip: false });
+				},
+				placement: linkTooltipPlacement,
+				container: this,
+				rootClose: true,
+				target: function target() {
+					return _this3.refs.linkCreateBtn.getDOMNode();
+				} },
+			React.createElement(
+				Popover,
+				{ id: 'popover', title: 'Create Link' },
+				React.createElement(Input, { type: 'text',
+					ref: 'linkInput',
+					name: 'url',
+					label: 'Link URL'
+				}),
+				React.createElement(ButtonInput, { type: 'submit', value: 'Submit', onClick: this._onLinkSubmit })
 			)
 		);
 		return React.createElement(
@@ -333,9 +408,10 @@ module.exports = React.createClass({
 					videoUpload,
 					React.createElement(
 						Button,
-						{ onClick: this._execCommand.bind(this, 'createLink') },
+						{ ref: 'linkCreateBtn', id: 'linkCreateBtn', onClick: this._toggleLinkTooltip },
 						React.createElement('i', { className: 'fa fa-link' })
-					)
+					),
+					linkCreate
 				)
 			),
 			React.createElement('div', _extends({
@@ -344,8 +420,8 @@ module.exports = React.createClass({
 			}, this.props, {
 				contentEditable: 'true',
 				dangerouslySetInnerHTML: { __html: this.state.html },
-				onBlur: function (e) {
-					if (e.relatedTarget.id === 'imgUploadBtn' || e.relatedTarget.id === 'videoUploadBtn') {
+				onBlur: function onBlur(e) {
+					if (e.relatedTarget.id === 'imgUploadBtn' || e.relatedTarget.id === 'videoUploadBtn' || e.relatedTarget.id === 'linkCreateBtn') {
 						e.preventDefault();
 						_this3.refs.editor.getDOMNode().focus();
 					}
