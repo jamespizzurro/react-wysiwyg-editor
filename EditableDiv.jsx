@@ -70,7 +70,7 @@ module.exports = React.createClass({
 	},
 
 	_execCommand: function(command, arg) {
-		document.execCommand(command, false, arg);
+		return document.execCommand(command, false, arg);
 	},
 
 	_emitChange: function() {
@@ -135,7 +135,8 @@ module.exports = React.createClass({
 	_onLinkSubmit: function() {
 		this.refs.editor.getDOMNode().focus();
 		this._restoreSelection(this.state.textSelection);
-		this._execCommand('createLink', this.refs.linkInput.getInputDOMNode().value);
+		var link = this._execCommand('createLink', this.refs.linkInput.getInputDOMNode().value);
+		link.target = "_blank";
 		this._toggleLinkTooltip();
 	},
 
@@ -211,6 +212,7 @@ module.exports = React.createClass({
 					<Input type="text"
 					       ref="linkInput"
 					       name="url"
+					       value="http://"
 					       label="Link URL"
 						/>
 					<ButtonInput type="submit" value="Submit" onClick={this._onLinkSubmit}/>
@@ -288,6 +290,10 @@ module.exports = React.createClass({
 					contentEditable="true"
 					dangerouslySetInnerHTML={{__html: this.state.html}}
 					onBlur={(e) => {
+						if (!e || !e.relatedTarget) {
+							return;
+						}
+
 						if (e.relatedTarget.id === 'imgUploadBtn' || e.relatedTarget.id === 'videoUploadBtn' || e.relatedTarget.id === 'linkCreateBtn') {
 							e.preventDefault();
 							this.refs.editor.getDOMNode().focus();
